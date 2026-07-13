@@ -1,0 +1,6 @@
+recipient_name,recipient_email,certificate_title,issue_date,organization_name
+John Doe,john@example.com,Full Stack Web Development,2024-01-15,ECMA Tech Academy
+Jane Smith,jane@example.com,Data Science Fundamentals,2024-02-20,ECMA Tech Academy
+Bob Johnson,,Cloud Computing Essentials,2024-03-10,ECMA Tech Academy
+Alice Williams,alice@example.com,Cybersecurity Certification,2024-04-05,ECMA Tech Academy
+Charlie Brown,charlie@example.com,Machine Learning Engineering,2024-05-12,ECMA Tech Academy
