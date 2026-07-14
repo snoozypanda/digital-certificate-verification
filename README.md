@@ -142,12 +142,6 @@ docker compose build --no-cache api
 docker compose up -d
 ```
 
-## Notes for Contributors
-
-- Changes to shared backend files (especially `app/main.py`) should go through a GitHub Issue first so collaborators can weigh in before merging.
-- CORS is currently open (`allow_origins=["*"]`) for local development. **This must be locked down to the real production domain(s) before launch** — see open issues.
-- Frontend uses plain `React.createElement` deliberately — Babel/JSX in-browser transpilation caused rendering issues in this setup.
-
 ## Future Improvements
 
 - Authentication and role-based access
