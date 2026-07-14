@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Certificate Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1B2A4A;
+    --parchment: #FAF6EC;
+    --parchment-deep: #F1EADA;
+    --brass: #A9812E;
+    --verified: #33513F;
+    --revoked: #8C3B2E;
+    --line: #D9CFB8;
+    --panel: #ffffff;
+    --text-muted: #6b7280;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--parchment);
+    font-family: 'IBM Plex Sans', sans-serif;
+    color: var(--ink);
+  }
+  #root { min-height: 100vh; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+<script>
+// Plain JavaScript React (no JSX, no Babel) — avoids in-browser transpiler
+// issues that can occur with certain networks/extensions.
+const { useState, useEffect, useMemo, useCallback } = React;
+const h = React.createElement;
+
+// Point this at your running backend.
+const API_BASE = window.location.origin.includes("localhost")
+  ? "http://localhost:8000"
+  : window.location.origin;
+
+const panelStyle = {
+  background: 'var(--panel)',
+  border: '1px solid var(--line)',
+  borderRadius: 4,
+  padding: 28,
+  marginTop: 24
+};
+const tdStyle = { padding: '12px', verticalAlign: 'middle' };
+
+function App() {
+  const [tab, setTab] = useState('upload');
+  return h('div', { style: { maxWidth: 1040, margin: '0 auto', padding: '0 28px 60px' } },
+    h(Header, { tab, setTab }),
+    tab === 'upload'
+      ? h(UploadPanel, { onDone: () => setTab('certificates') })
+      : h(CertificatesPanel)
+  );
+}
+
+function Header({ tab, setTab }) {
+  return h('div', { style: { padding: '40px 0 20px' } },
+    h('p', {
+      style: {
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: 11,
+        letterSpacing: '0.14em',
+        textTransform: 'uppercase',
+        color: 'var(--brass)',
+        margin: '0 0 8px'
+      }
+    }, 'Certificate Registry — Admin'),
+    h('h1', {
+      style: {
+        fontFamily: "'Fraunces', serif",
+        fontWeight: 600,
+        fontSize: 30,
+        margin: '0 0 24px',
+        letterSpacing: '-0.01em'
+      }
+    }, 'Manage Certificates'),
+    h('div', { style: { display: 'flex', gap: 4, borderBottom: '1.5px solid var(--line)' } },
+      h(TabButton, { active: tab === 'upload', onClick: () => setTab('upload') }, 'Upload batch'),
+      h(TabButton, { active: tab === 'certificates', onClick: () => setTab('certificates') }, 'All certificates')
+    )
+  );
+}
+
+function TabButton({ active, onClick, children }) {
+  return h('button', {
+    onClick,
+    style: {
+      fontFamily: "'IBM Plex Sans', sans-serif",
+      fontSize: 14.5,
+      fontWeight: 600,
+      padding: '10px 18px',
+      background: 'none',
+      border: 'none',
+      borderBottom: active ? '2.5px solid var(--ink)' : '2.5px solid transparent',
+      marginBottom: -1.5,
+      color: active ? 'var(--ink)' : 'var(--text-muted)',
+      cursor: 'pointer'
+    }
+  }, children);
+}
+
+function UploadPanel({ onDone }) {
+  const [file, setFile] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [status, setStatus] = useState('idle'); // idle | uploading | success | error
+  const [message, setMessage] = useState('');
+  const [summary, setSummary] = useState(null);
+
+  const handleFiles = (files) => {
+    const f = files[0];
+    if (!f) return;
+    if (!f.name.toLowerCase().endsWith('.csv')) {
+      setStatus('error');
+      setMessage('Only .csv files are accepted.');
+      return;
+    }
+    setFile(f);
+    setStatus('idle');
+    setMessage('');
+    setSummary(null);
+  };
+
+  const upload = async () => {
+    if (!file) return;
+    setStatus('uploading');
+    setMessage('');
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(`${API_BASE}/certificates/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        setStatus('error');
+        setMessage(text || `Upload failed (${res.status}).`);
+        return;
+      }
+      const data = await res.json();
+      setStatus('success');
+      setSummary(data);
+    } catch (err) {
+      setStatus('error');
+      setMessage('Could not reach the server. Confirm the backend is running.');
+    }
+  };
+
+  return h('div', { style: panelStyle },
+    h('div', {
+      onDragOver: (e) => { e.preventDefault(); setDragOver(true); },
+      onDragLeave: () => setDragOver(false),
+      onDrop: (e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); },
+      style: {
+        border: `1.5px dashed ${dragOver ? 'var(--brass)' : 'var(--line)'}`,
+        borderRadius: 4,
+        padding: '48px 24px',
+        textAlign: 'center',
+        background: dragOver ? 'var(--parchment-deep)' : 'var(--parchment)',
+        transition: 'background 0.15s ease, border-color 0.15s ease'
+      }
+    },
+      h('p', { style: { fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 600, margin: '0 0 8px' } },
+        file ? file.name : 'Drop a recipient CSV here'
+      ),
+      h('p', { style: { fontSize: 13.5, color: 'var(--text-muted)', margin: '0 0 18px' } },
+        'Columns expected: recipient_name, recipient_email, certificate_title, issue_date, organization_name'
+      ),
+      h('label', {
+        style: {
+          display: 'inline-block',
+          fontSize: 14,
+          fontWeight: 600,
+          padding: '10px 18px',
+          border: '1.5px solid var(--ink)',
+          borderRadius: 3,
+          cursor: 'pointer'
+        }
+      },
+        'Choose file',
+        h('input', {
+          type: 'file',
+          accept: '.csv',
+          onChange: (e) => handleFiles(e.target.files),
+          style: { display: 'none' }
+        })
+      )
+    ),
+
+    h('div', { style: { display: 'flex', justifyContent: 'flex-end', marginTop: 20 } },
+      h('button', {
+        onClick: upload,
+        disabled: !file || status === 'uploading',
+        style: {
+          fontFamily: "'IBM Plex Sans', sans-serif",
+          fontWeight: 600,
+          fontSize: 14.5,
+          background: 'var(--ink)',
+          color: 'var(--parchment)',
+          border: 'none',
+          borderRadius: 3,
+          padding: '12px 26px',
+          cursor: (!file || status === 'uploading') ? 'default' : 'pointer',
+          opacity: (!file || status === 'uploading') ? 0.5 : 1
+        }
+      }, status === 'uploading' ? 'Generating certificates…' : 'Generate certificates')
+    ),
+
+    status === 'error' ? h('div', {
+      style: { marginTop: 20, padding: '14px 18px', background: '#fbeeec', border: '1px solid #e3bdb5', borderRadius: 3, color: 'var(--revoked)', fontSize: 14 }
+    }, message) : null,
+
+    status === 'success' ? h('div', {
+      style: { marginTop: 20, padding: '18px 20px', background: '#eef2ee', border: '1px solid #c3d3c8', borderRadius: 3 }
+    },
+      h('p', { style: { margin: '0 0 6px', fontWeight: 600, color: 'var(--verified)' } }, 'Batch processed successfully.'),
+      h('p', { style: { margin: '0 0 14px', fontSize: 13.5, color: 'var(--text-muted)' } },
+        summary && summary.total_processed != null
+          ? `${summary.successful} of ${summary.total_processed} certificate${summary.total_processed === 1 ? '' : 's'} generated${summary.failed ? `, ${summary.failed} failed` : ''}.`
+          : 'Certificates have been generated and stored.'
+      ),
+      h('button', {
+        onClick: onDone,
+        style: { fontSize: 13.5, fontWeight: 600, background: 'none', border: 'none', color: 'var(--ink)', textDecoration: 'underline', cursor: 'pointer', padding: 0 }
+      }, 'View all certificates →')
+    ) : null
+  );
+}
+
+function CertificatesPanel() {
+  const [certs, setCerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [query, setQuery] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await fetch(`${API_BASE}/certificates`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setCerts(Array.isArray(data) ? data : (data.items || []));
+    } catch (err) {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return certs;
+    const q = query.toLowerCase();
+    return certs.filter(c =>
+      (c.recipient_name || '').toLowerCase().includes(q) ||
+      (c.certificate_id || '').toLowerCase().includes(q) ||
+      (c.certificate_title || '').toLowerCase().includes(q)
+    );
+  }, [certs, query]);
+
+  return h('div', { style: panelStyle },
+    h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, gap: 12 } },
+      h('input', {
+        value: query,
+        onChange: (e) => setQuery(e.target.value),
+        placeholder: 'Search by name, title, or certificate ID',
+        style: {
+          flex: 1,
+          fontFamily: "'IBM Plex Sans', sans-serif",
+          fontSize: 14,
+          padding: '10px 14px',
+          border: '1.5px solid var(--line)',
+          borderRadius: 3,
+          background: 'var(--parchment)',
+          color: 'var(--ink)'
+        }
+      }),
+      h('button', {
+        onClick: load,
+        style: { fontSize: 13.5, fontWeight: 600, background: 'none', border: '1.5px solid var(--line)', borderRadius: 3, padding: '10px 14px', cursor: 'pointer', color: 'var(--ink)' }
+      }, 'Refresh')
+    ),
+
+    loading ? h('p', { style: { color: 'var(--text-muted)', fontSize: 14 } }, 'Loading certificates…') : null,
+    error ? h('p', { style: { color: 'var(--revoked)', fontSize: 14 } }, 'Could not load certificates. Confirm the backend is running.') : null,
+
+    (!loading && !error && filtered.length === 0) ? h('p', { style: { color: 'var(--text-muted)', fontSize: 14 } }, 'No certificates yet. Upload a CSV to get started.') : null,
+
+    (!loading && !error && filtered.length > 0) ? h('table', { style: { width: '100%', borderCollapse: 'collapse', fontSize: 14 } },
+      h('thead', null,
+        h('tr', { style: { borderBottom: '1.5px solid var(--line)', textAlign: 'left' } },
+          h(Th, null, 'Certificate ID'),
+          h(Th, null, 'Recipient'),
+          h(Th, null, 'Title'),
+          h(Th, null, 'Issued'),
+          h(Th, null, 'Status'),
+          h(Th, null, '')
+        )
+      ),
+      h('tbody', null,
+        filtered.map((c, i) => h('tr', { key: c.certificate_id || i, style: { borderBottom: '1px solid var(--line)' } },
+          h('td', { style: tdStyle }, h('span', { style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 12.5 } }, c.certificate_id)),
+          h('td', { style: tdStyle }, c.recipient_name),
+          h('td', { style: tdStyle }, c.certificate_title),
+          h('td', { style: tdStyle }, c.issue_date),
+          h('td', { style: tdStyle }, h(StatusPill, { status: c.status, isValidFlag: c.is_valid })),
+          h('td', { style: { ...tdStyle, textAlign: 'right' } },
+            h('a', {
+              href: `${API_BASE}/certificates/${c.certificate_id}/download`,
+              style: { fontSize: 13, fontWeight: 600, color: 'var(--ink)', textDecoration: 'underline' }
+            }, 'Download')
+          )
+        ))
+      )
+    ) : null
+  );
+}
+
+function Th({ children }) {
+  return h('th', { style: { padding: '10px 12px', fontWeight: 600, fontSize: 12.5, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' } }, children);
+}
+
+function StatusPill({ status, isValidFlag }) {
+  const isValid = isValidFlag === true || (status || '').toUpperCase() === 'VALID';
+  return h('span', {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      padding: '3px 10px',
+      borderRadius: 20,
+      background: isValid ? '#eef2ee' : '#fbeeec',
+      color: isValid ? 'var(--verified)' : 'var(--revoked)'
+    }
+  }, isValid ? 'Valid' : 'Revoked');
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+</script>
+</body>
+</html>

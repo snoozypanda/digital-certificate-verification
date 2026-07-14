@@ -7,6 +7,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+RUN rm -f /etc/apt/sources.list.d/debian.sources && \
+    printf "deb http://cloudflaremirrors.com/debian trixie main\ndeb http://cloudflaremirrors.com/debian trixie-updates main\n" > /etc/apt/sources.list
+
 # Install system dependencies required by psycopg2 and Pillow
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
