@@ -1,7 +1,22 @@
 # Digital Certificate Verification System
 
-<<<<<<< HEAD
+
 A full-stack system for generating, storing, and verifying digital certificates. The system processes certificate data from CSV/Excel uploads, generates QR codes and PDF certificates, stores certificate records in PostgreSQL, and provides a public verification page for recipients.
+
+# Application Preview
+
+## Certificate Verification Page
+
+<img src="images/verify-home.png" width="900">
+
+## Admin Dashboard
+
+<img src="images/admin-home.png" width="900">
+
+## Certificates Management Table
+
+<img src="images/certificattes-table.png" width="900">
+
 
 ## Features
 
