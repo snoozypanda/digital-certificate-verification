@@ -7,8 +7,11 @@ Business logic is delegated to CertificateService.
 
 import logging
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Query, UploadFile, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+import os
+
 
 from app.database import get_db
 from app.schemas.certificate import (
@@ -110,3 +113,32 @@ def revoke_certificate(
     """Revoke (soft-delete) a certificate."""
     logger.info("Revocation request for: %s", certificate_id)
     return CertificateService.revoke_certificate(db, certificate_id)
+
+
+@router.get(
+    "/certificates/{certificate_id}/download",
+    summary="Download certificate PDF",
+    description="Retrieve the generated PDF certificate directly as a file download.",
+)
+def download_certificate(
+    certificate_id: str,
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    """Return the certificate PDF file for download."""
+    logger.info("Download request for certificate: %s", certificate_id)
+    certificate = CertificateService.get_certificate(db, certificate_id)
+    
+    if not certificate.pdf_path or not os.path.exists(certificate.pdf_path):
+        logger.error("Certificate PDF file not found on disk: %s", certificate.pdf_path)
+        raise HTTPException(
+            status_code=404,
+            detail="Certificate PDF file not found on disk."
+        )
+        
+    filename = f"{certificate_id}.pdf"
+    return FileResponse(
+        path=certificate.pdf_path,
+        media_type="application/pdf",
+        filename=filename,
+    )
+
