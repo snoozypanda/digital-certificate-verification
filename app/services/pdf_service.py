@@ -295,7 +295,7 @@ class PDFService:
         line_gap = 6 * mm
 
         # English column (left)
-        c.setFont("Times-Roman", 11)
+        c.setFont("Times-Roman", 15)
         c.setFillColor(PDFService.DARK_COLOR)
         c.drawString(left_x, para_top, "has successfully completed ECMA's 12 week")
         c.drawString(left_x, para_top - line_gap, "online investor Education program organized")
@@ -304,7 +304,7 @@ class PDFService:
         c.drawString(left_x, para_top - 4 * line_gap, "in capital market through online education.")
 
         # Amharic column (right)
-        c.setFont("NotoEthiopic", 10)
+        c.setFont("NotoEthiopic", 13.5)
         c.setFillColor(PDFService.DARK_COLOR)
         c.drawString(right_x, para_top, "የኢትዮጵያ የካፒታል ገበያ ባለስልጣን የካፒታል ገበያ መሠረታዊ")
         c.drawString(right_x, para_top - line_gap, "እውቀት ማግኘት ዓላማ ትኩረት አድርጎ ለ12 ሳምንታት በቆየው")
