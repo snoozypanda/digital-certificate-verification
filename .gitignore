@@ -32,3 +32,5 @@ Thumbs.db
 
 # Alembic
 alembic/versions/*.pyc
+preview*.pdf
+test_cert.pdf

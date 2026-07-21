@@ -153,7 +153,7 @@ class PDFService:
             w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
 
             # 1. Plain white background
-            c.setFillColor(colors.white)
+            c.setFillColor(colors.HexColor("#F1EADF"))
             c.rect(0, 0, w, h, fill=True, stroke=False)
 
             # 2. Border
@@ -400,21 +400,21 @@ class PDFService:
         line_gap = 7.5 * mm
 
         # English column (left)
-        c.setFont("Times-Roman", 14)
+        c.setFont("Times-Roman", 16)
         c.setFillColor(PDFService.DARK_COLOR)
-        c.drawString(left_x, para_top, "has successfully completed ECMA's 12 week")
+        c.drawString(left_x, para_top, "for successfully completing ECMA's twelve week")
         c.drawString(left_x, para_top - line_gap, "online investor education program organized")
-        c.drawString(left_x, para_top - 2 * line_gap, f"by {organization_name}, designed to provide")
-        c.drawString(left_x, para_top - 3 * line_gap, "foundational knowledge in capital markets")
-        c.drawString(left_x, para_top - 4 * line_gap, "through online education.")
+        c.drawString(left_x, para_top - 2 * line_gap, f"by {organization_name}")
+        # c.drawString(left_x, para_top - 3 * line_gap, "knowledge in capital markets through online")
+        # c.drawString(left_x, para_top - 4 * line_gap, "education.")
 
         # Amharic column (right)
-        c.setFont(_AMHARIC_FONT, 13)
+        c.setFont(_AMHARIC_FONT, 15)
         c.setFillColor(PDFService.DARK_COLOR)
         c.drawString(right_x, para_top, "የኢትዮጵያ የካፒታል ገበያ ባለስልጣን የካፒታል ገበያ መሠረታዊ")
-        c.drawString(right_x, para_top - line_gap, "እውቀት ማጎልበት ላይ ትኩረት አድርጎ ለአስራ ሁለት ሳምንታት በሰጠው")
-        c.drawString(right_x, para_top - 2 * line_gap, "በድህረ መረብ ስልጠና መርሃ-ግብር ተሳትፎ እና ስልጠናውን በስኬት")
-        c.drawString(right_x, para_top - 3 * line_gap, "ስላጠናቀቁ ይህ የተሳትፎ የምስክር ወረቀት ተበርክቶላቸዋል።")
+        c.drawString(right_x, para_top - line_gap, "እውቀት ማጎልበት ላይ ትኩረት አድርጎ ለአስራ ሁለት ሳምንታት")
+        c.drawString(right_x, para_top - 2 * line_gap, "የሰጠው የበይነ መረብ ስልጠና በስኬት ስላጠናቀቁ ይህ የተሳትፎ")
+        c.drawString(right_x, para_top - 3 * line_gap, "የምስክር ወረቀት ተበርክቶላቸዋል።")
 
     @staticmethod
     def _draw_signature(c: canvas.Canvas, settings) -> None:
@@ -443,7 +443,7 @@ class PDFService:
             sig_h = 58 * mm
             c.drawImage(
                 sig_path,
-                sig_center_x - sig_w / 2, line_y - 16 * mm,
+                sig_center_x - sig_w / 2, line_y - 20 * mm,
                 width=sig_w, height=sig_h,
                 preserveAspectRatio=True,
                 mask="auto",
@@ -479,7 +479,7 @@ class PDFService:
         w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
         stamp_size = 96 * mm
         stamp_x = w - 24 * mm - stamp_size
-        stamp_y = 2 * mm
+        stamp_y = -20 * mm - 6
 
         stamp_path = os.path.join(settings.static_dir, "final stamp.png")
 
@@ -528,13 +528,13 @@ class PDFService:
 
         left_x = 28 * mm
 
-        # --- Left column: Issued on, then Certificate ID stacked below ---
-        c.setFont("Times-Roman", 9)
-        c.setFillColor(PDFService.LIGHT_TEXT)
-        c.drawString(left_x, 30 * mm, "Issued on:")
-        c.setFont("Times-Bold", 9)
-        c.setFillColor(PDFService.DARK_COLOR)
-        c.drawString(left_x, 25.5 * mm, formatted_date)
+        # # --- Left column: Issued on, then Certificate ID stacked below ---
+        # c.setFont("Times-Roman", 9)
+        # c.setFillColor(PDFService.LIGHT_TEXT)
+        # c.drawString(left_x, 30 * mm, "Issued on:")
+        # c.setFont("Times-Bold", 9)
+        # c.setFillColor(PDFService.DARK_COLOR)
+        # c.drawString(left_x, 25.5 * mm, formatted_date)
 
         c.setFont("Times-Roman", 9)
         c.setFillColor(PDFService.LIGHT_TEXT)
