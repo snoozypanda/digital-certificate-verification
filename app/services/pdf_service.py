@@ -16,50 +16,76 @@ from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 
 from app.config import get_settings
 from app.exceptions import FileProcessingError
 
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Font registration (module-level, runs once on import)
+# Amharic font registration
 # ---------------------------------------------------------------------------
+# ReportLab's built-in fonts (Times-Roman, Helvetica, etc.) cannot render
+# Ethiopic script. We embed Noto Sans Ethiopic (SIL Open Font License) to
+# support the Amharic text on the certificate.
+#
+# Expected location (relative to the static directory configured in
+# app/config.py):
+#   static/fonts/NotoSansEthiopic-Regular.ttf
+#   static/fonts/NotoSansEthiopic-Bold.ttf
+#
+# If these files are missing, Amharic text will fail to render and a clear
+# error is logged rather than silently producing blank/garbled output.
 
 _FONTS_REGISTERED = False
+_FONTS_OK = False
 
 
-def _register_fonts() -> None:
+def _register_fonts() -> bool:
     """
     Register the Amharic (Noto Sans Ethiopic) fonts with ReportLab.
 
     Safe to call multiple times — registration only happens once.
+    Returns True if both the regular and bold Amharic fonts are
+    registered and available for use, False otherwise.
     """
-    global _FONTS_REGISTERED
+    global _FONTS_REGISTERED, _FONTS_OK
     if _FONTS_REGISTERED:
-        return
+        return _FONTS_OK
 
     settings = get_settings()
-    fonts_dir = os.path.join(settings.static_dir, "fonts")
-    regular_path = os.path.join(fonts_dir, "NotoSansEthiopic-Regular.ttf")
-    bold_path = os.path.join(fonts_dir, "NotoSansEthiopic-Bold.ttf")
+    font_dir = os.path.join(settings.static_dir, "fonts")
+    regular_path = os.path.join(font_dir, "NotoSansEthiopic-Regular.ttf")
+    bold_path = os.path.join(font_dir, "NotoSansEthiopic-Bold.ttf")
+
+    regular_ok = False
+    bold_ok = False
 
     try:
         if os.path.exists(regular_path):
             pdfmetrics.registerFont(TTFont("NotoEthiopic", regular_path))
+            regular_ok = True
         else:
             logger.warning("Amharic regular font not found at %s", regular_path)
 
         if os.path.exists(bold_path):
             pdfmetrics.registerFont(TTFont("NotoEthiopic-Bold", bold_path))
+            bold_ok = True
         else:
             logger.warning("Amharic bold font not found at %s", bold_path)
 
-        _FONTS_REGISTERED = True
     except Exception as e:
         logger.error("Failed to register Amharic fonts: %s", str(e))
+
+    _FONTS_REGISTERED = True
+    _FONTS_OK = regular_ok and bold_ok
+    return _FONTS_OK
+
+
+# Font names to use for Amharic text once registered via _register_fonts().
+_AMHARIC_FONT = "NotoEthiopic"
+_AMHARIC_FONT_BOLD = "NotoEthiopic-Bold"
 
 
 class PDFService:
@@ -79,20 +105,6 @@ class PDFService:
     CONTENT_LEFT = 30 * mm
     CONTENT_RIGHT_EDGE = PAGE_WIDTH - 30 * mm
     COLUMN_GAP = 10 * mm
-
-    # Amharic translations for standard certificate copy.
-    # NOTE: these should be reviewed by a native Amharic speaker on staff
-    # before use on real, issued certificates.
-    AM_SUBTITLE_LINE1 = "ይህ የሚያረጋግጠው የሚከተለው ግለሰብ ሁሉንም መስፈርቶች"
-    AM_SUBTITLE_LINE2 = "በተሳካ ሁኔታ አሟልቶ ይህንን የምስክር ወረቀት ማግኘቱን ነው፦"
-    AM_COMPLETION_LINE1 = "የኢትዮጵያ ካፒታል ገበያ ባለስልጣን"
-    AM_COMPLETION_LINE2 = "የመስመር ላይ የባለሀብት ትምህርት ስልጠና መርሃ ግብርን በተሳካ ሁኔታ በማጠናቀቅ"
-    AM_DEPUTY_DG_TITLE = "ምክትል ዋና ዳይሬክተር"
-    AM_DG_TITLE = "ዋና ዳይሬክተር"
-    AM_ISSUED_ON = "የተሰጠበት ቀን፦"
-    AM_CERT_ID = "የምስክር ወረቀት መለያ፦"
-    AM_ADDRESS_LINE1 = "የኢትዮጵያ ካፒታል ገበያ ባለስልጣን፣ ፍላሚንጎ አካባቢ፣ ቂርቆስ ክፍለ ከተማ፣"
-    AM_ADDRESS_LINE2 = "አዲስ አበባ፣ ኢትዮጵያ"
 
     @staticmethod
     def generate_pdf(
@@ -121,13 +133,11 @@ class PDFService:
         Raises:
             FileProcessingError: If PDF generation fails.
         """
-        _register_fonts()
-
         settings = get_settings()
         output_dir = settings.certificates_dir
         output_path = os.path.join(output_dir, f"{certificate_id}.pdf")
 
-        if not _register_amharic_fonts():
+        if not _register_fonts():
             raise FileProcessingError(
                 "Cannot generate certificate: Amharic font files are missing. "
                 "Add NotoSansEthiopic-Regular.ttf and NotoSansEthiopic-Bold.ttf "
@@ -143,32 +153,37 @@ class PDFService:
             w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
 
             # 1. Plain white background
-            c.setFillColor(colors.white)
+            c.setFillColor(colors.HexColor("#F1EADF"))
             c.rect(0, 0, w, h, fill=True, stroke=False)
 
             # 2. Border
             PDFService._draw_border(c)
 
-            # 3. Header row: enlarged logo (centered, contains its own text) + QR (right)
-            logo_path = os.path.join(
-                settings.static_dir,
-                "ECMA-Primary_Logo_Full-Colour-Gradient_RGB.png",
-            )
-            PDFService._draw_header_row(c, logo_path, qr_code_path)
+            # 2b. Watermark
+            PDFService._draw_watermark(c, w)
 
-            # 4. Subtitle narrative (English + Amharic)
-            PDFService._draw_subtitle(c)
+            # 3. QR code, top-right corner
+            PDFService._draw_qr_code(c, qr_code_path)
 
-            # 5. Bilingual title
-            PDFService._draw_title(c)
+            # 4. Centered logo + bilingual org name lockup
+            PDFService._draw_header_lockup(c, settings)
 
-            # 6. Completion description + program title (English + Amharic)
-            PDFService._draw_program_info(c, certificate_title)
+            # 5. Bilingual title (recipient name)
+            PDFService._draw_title(c, recipient_name)
 
-            # 7. Signature box (English + Amharic titles)
-            PDFService._draw_signature_box(c)
+            # 6. "To ____" / "ለ ____" recipient line
+            PDFService._draw_recipient_line(c, recipient_name)
 
-            # 8. Footer metadata (English + Amharic)
+            # 7. Bilingual body paragraph + course title
+            PDFService._draw_body(c, certificate_title, organization_name)
+
+            # 8. Signature block (centered)
+            PDFService._draw_signature(c, settings)
+
+            # 9. Stamp / seal, bottom-right corner
+            PDFService._draw_stamp(c, settings)
+
+            # 10. Footer: issue date + certificate ID, bottom-left
             PDFService._draw_footer(c, issue_date, certificate_id)
 
             c.save()
@@ -193,6 +208,24 @@ class PDFService:
     # ------------------------------------------------------------------
 
     @staticmethod
+    def _draw_qr_code(c: canvas.Canvas, qr_code_path: str) -> None:
+        """QR code, top-right corner, for certificate verification."""
+        w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
+        qr_size = 22 * mm
+        qr_x = w - 22 * mm - qr_size
+        qr_y = h - 22 * mm - qr_size
+
+        if os.path.exists(qr_code_path):
+            c.drawImage(
+                qr_code_path,
+                qr_x, qr_y,
+                width=qr_size, height=qr_size,
+                preserveAspectRatio=True,
+                mask="auto",
+            )
+        else:
+            logger.warning("QR code not found at %s", qr_code_path)
+    @staticmethod
     def _draw_border(c: canvas.Canvas) -> None:
         """Simple double hairline border with a gold accent line, rounded corners."""
         w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
@@ -204,6 +237,32 @@ class PDFService:
         c.setStrokeColor(PDFService.GOLD_COLOR)
         c.setLineWidth(0.5)
         c.roundRect(12 * mm, 12 * mm, w - 24 * mm, h - 24 * mm, 3 * mm, fill=False)
+
+    @staticmethod
+    def _draw_watermark(c: canvas.Canvas, page_width: float) -> None:
+        """Faint gold guilloche seal watermark, cropped at the bottom edge."""
+        settings = get_settings()
+        seal_path = os.path.join(
+            settings.static_dir, "Small_Seal_Guilloche_Gradient_Gold_RGB.png"
+        )
+
+        if not os.path.exists(seal_path):
+            return
+
+        seal_size = 80 * mm
+
+        c.saveState()
+        c.setFillAlpha(0.12)  # lower = more transparent
+        c.drawImage(
+            seal_path,
+            (page_width - seal_size) / 2,
+            -42 * mm,  # negative y crops it at the bottom
+            width=seal_size,
+            height=seal_size,
+            preserveAspectRatio=True,
+            mask="auto",
+        )
+        c.restoreState()
 
     @staticmethod
     def _draw_header_row(
@@ -219,7 +278,6 @@ class PDFService:
         """
         w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
         header_y = h - 40 * mm  # baseline for the row
-
 
         logo_h = 34 * mm
         logo_w = 90 * mm
@@ -257,153 +315,206 @@ class PDFService:
             logger.warning("QR code not found at %s", qr_code_path)
 
     @staticmethod
-    def _draw_subtitle(c: canvas.Canvas) -> None:
-        """Draw the main heading above the recipient name, in English then Amharic."""
+    def _draw_header_lockup(c: canvas.Canvas, settings) -> None:
+        """
+        Centered header: enlarged ECMA logo only. The logo image already
+        contains the organization's name/wordmark, so no separate text
+        is drawn beside it.
+        """
         w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
 
-        # English heading
-        c.setFont("Times-Bold", 24)
-        c.setFillColor(PDFService.DARK_COLOR)
-        c.drawCentredString(w / 2, h - 55 * mm, "CERTIFICATE OF PARTICIPATION")
+        icon_path = os.path.join(
+            settings.static_dir,
+            "ECMA-Primary_Logo_Full-Colour-Gradient_RGB.png",
+        )
+        logo_w = 85 * mm
+        logo_h = 32 * mm
+        logo_x = (w - logo_w) / 2
+        top_y = h - 18 * mm
 
-        # Amharic heading
-        c.setFont("NotoEthiopic-Bold", 16)
+        if os.path.exists(icon_path):
+            c.drawImage(
+                icon_path,
+                logo_x, top_y - logo_h,
+                width=logo_w, height=logo_h,
+                preserveAspectRatio=True,
+                mask="auto",
+            )
+        else:
+            logger.warning("ECMA logo not found at %s", icon_path)
+    @staticmethod
+    def _draw_title(c: canvas.Canvas, recipient_name: str) -> None:
+        """Bilingual title, centered: recipient name in large bold serif."""
+        w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
+
+        display_name = f"[{recipient_name}]"
+        c.setFont("Times-Bold", 25)
         c.setFillColor(PDFService.DARK_COLOR)
-        c.drawCentredString(w / 2, h - 63 * mm, "የተሳትፎ የምስክር ወረቀት")
+        c.drawCentredString(w / 2, h - 60 * mm, "CERTIFICATE OF PARTICIPATION")
+
+        c.setFont(_AMHARIC_FONT_BOLD, 16)
+        c.setFillColor(PDFService.DARK_COLOR)
+        c.drawCentredString(w / 2, h - 68 * mm, "የተሳትፎ የምስክር ወረቀት")
 
     @staticmethod
-    def _draw_title(c: canvas.Canvas) -> None:
-        """Bilingual title, centered: English above Amharic."""
+    def _draw_recipient_line(c: canvas.Canvas, recipient_name: str) -> None:
+        """Two-column 'To ____' (English) / 'ለ ____' (Amharic) recipient line."""
         w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
+        y = h - 82 * mm
 
-        # The name in large bold serif with bracket decoration
-        # (font size increased from 28 -> 34)
-        display_name = f"[{name}]"
-        c.setFont("Times-Bold", 34)
+        left_x = PDFService.CONTENT_LEFT
+        right_x = w / 2 + PDFService.COLUMN_GAP
+
+        # English: "To ______________"
+        c.setFont("Times-Roman", 11)
         c.setFillColor(PDFService.DARK_COLOR)
-        c.drawCentredString(w / 2, h - 86 * mm, display_name)
+        c.drawString(left_x, y, "To")
+        label_w = c.stringWidth("To", "Times-Roman", 11)
+        line_start = left_x + label_w + 3 * mm
+        line_end = w / 2 - PDFService.COLUMN_GAP
+        c.setStrokeColor(PDFService.GRAY_LINE)
+        c.setLineWidth(0.6)
+        c.line(line_start, y - 1 * mm, line_end, y - 1 * mm)
+        c.setFont("Times-Bold", 12)
+        c.drawCentredString((line_start + line_end) / 2, y + 2 * mm, recipient_name)
 
-    @staticmethod
-    def _draw_program_info(c: canvas.Canvas, certificate_title: str) -> None:
-        """Draw the completion description in two columns: English (left), Amharic (right)."""
-        w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
-        y = h - 74 * mm
-
-        left_x = PDFService.CONTENT_LEFT + 4 * mm
-        right_x = w / 2 + 6 * mm
-        para_top = h - 100 * mm
-        line_gap = 6 * mm
-
-        # English column (left)
-        c.setFont("Times-Roman", 15)
+        # Amharic: "ለ ______________"
+        c.setFont(_AMHARIC_FONT, 11)
         c.setFillColor(PDFService.DARK_COLOR)
-        c.drawString(left_x, para_top, "has successfully completed ECMA's 12 week")
-        c.drawString(left_x, para_top - line_gap, "online investor Education program organized")
-        c.drawString(left_x, para_top - 2 * line_gap, "by the Ethiopian Capital Market Authority,")
-        c.drawString(left_x, para_top - 3 * line_gap, "designed to provide fundaments knowledge")
-        c.drawString(left_x, para_top - 4 * line_gap, "in capital market through online education.")
+        c.drawString(right_x, y, "ለ")
+        label_w_am = c.stringWidth("ለ", _AMHARIC_FONT, 11)
+        line_start_am = right_x + label_w_am + 3 * mm
+        line_end_am = PDFService.CONTENT_RIGHT_EDGE
+        c.line(line_start_am, y - 1 * mm, line_end_am, y - 1 * mm)
+        c.setFont(_AMHARIC_FONT_BOLD, 12)
+        c.drawCentredString((line_start_am + line_end_am) / 2, y + 2 * mm, recipient_name)
 
-        # Amharic column (right)
-        c.setFont("NotoEthiopic", 13.5)
-        c.setFillColor(PDFService.DARK_COLOR)
-        c.drawString(right_x, para_top, "የኢትዮጵያ የካፒታል ገበያ ባለስልጣን የካፒታል ገበያ መሠረታዊ")
-        c.drawString(right_x, para_top - line_gap, "እውቀት ማግኘት ዓላማ ትኩረት አድርጎ ለ12 ሳምንታት በቆየው")
-        c.drawString(right_x, para_top - 2 * line_gap, "በድህረ መረብ ስልጠና መርሃ-ግብር ተሳትፎ እና ስልጠናውን በስኬት ስላጠናቀቁ/ቂ")
-        c.drawString(right_x, para_top - 3 * line_gap, "ይህ የተሳትፎ የምስክር ወረቀት ተሰጥቷል/ታል።")
-
-        
     @staticmethod
     def _draw_body(c: canvas.Canvas, certificate_title: str, organization_name: str) -> None:
+        """Draw the completion description in two columns: English (left), Amharic (right)."""
+        w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
+
+        left_x = PDFService.CONTENT_LEFT + 4 * mm
+        right_x = w / 2 + PDFService.COLUMN_GAP
+        para_top = h - 96 * mm
+        line_gap = 7.5 * mm
+
+        # English column (left)
+        c.setFont("Times-Roman", 16)
+        c.setFillColor(PDFService.DARK_COLOR)
+        c.drawString(left_x, para_top, "for successfully completing ECMA's twelve week")
+        c.drawString(left_x, para_top - line_gap, "online investor education program organized")
+        c.drawString(left_x, para_top - 2 * line_gap, f"by {organization_name}")
+        # c.drawString(left_x, para_top - 3 * line_gap, "knowledge in capital markets through online")
+        # c.drawString(left_x, para_top - 4 * line_gap, "education.")
+
+        # Amharic column (right)
+        c.setFont(_AMHARIC_FONT, 15)
+        c.setFillColor(PDFService.DARK_COLOR)
+        c.drawString(right_x, para_top, "የኢትዮጵያ የካፒታል ገበያ ባለስልጣን የካፒታል ገበያ መሠረታዊ")
+        c.drawString(right_x, para_top - line_gap, "እውቀት ማጎልበት ላይ ትኩረት አድርጎ ለአስራ ሁለት ሳምንታት")
+        c.drawString(right_x, para_top - 2 * line_gap, "የሰጠው የበይነ መረብ ስልጠና በስኬት ስላጠናቀቁ ይህ የተሳትፎ")
+        c.drawString(right_x, para_top - 3 * line_gap, "የምስክር ወረቀት ተበርክቶላቸዋል።")
+
+    @staticmethod
+    def _draw_signature(c: canvas.Canvas, settings) -> None:
         """
-        Draw the signature section inside a subtle rounded-corner box,
-        with two columns: left (Deputy DG) and right (DG). Titles are
-        shown in English and Amharic.
+        Draw the signature section: an optional signature image above a
+        centered signing line, with the Director General's name, English
+        title, and Amharic title beneath. Falls back to a blank line if
+        the signature image is not yet available.
+
+        Expected signature image path: static/signatures/final signature.png
         """
         w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
 
-        # Signature box dimensions
         box_x = 28 * mm
-        box_y = 40 * mm
         box_w = w - 56 * mm
-        box_h = 32 * mm
-
-        english_lines = [
-            f"has successfully completed the {certificate_title}",
-            f"program organized by {organization_name}, designed",
-            "to provide foundational knowledge through online",
-            "education.",
-        ]
-
-        # # --- Left signature: Rahel Kassa ---
-        # left_x = box_x + 8 * mm
-        # name_y = box_y + 22 * mm
-        # title_y = box_y + 13 * mm
-        # am_title_y = box_y + 7 * mm
-
-        # # Name (font size increased from 10 -> 12)
-        # c.setFont("Times-Bold", 12)
-        # c.setFillColor(PDFService.DARK_COLOR)
-        # c.drawString(left_x, name_y, "Rahel Kassa")
-
-        # # English title (font size increased from 9 -> 11)
-        # c.setFont("Times-Bold", 11)
-        # c.setFillColor(PDFService.DARK_COLOR)
-        # title_text = "Deputy Director General"
-        # c.drawString(left_x, title_y, title_text)
-
-        # # Amharic title
-        # c.setFont("NotoEthiopic-Bold", 9)
-        # c.drawString(left_x, am_title_y, PDFService.AM_DEPUTY_DG_TITLE)
-
-        # # Signature line extending from end of title
-        # title_w = c.stringWidth(title_text, "Times-Bold", 11)
-        # c.setStrokeColor(PDFService.GRAY_LINE)
-        # c.setLineWidth(0.5)
-        # line_start = left_x + title_w + 2 * mm
-        # line_end = left_x + title_w + 30 * mm
-        # c.line(line_start, title_y, line_end, title_y)
-
-# --- Signature: Hana Tehelku, Director General (centered) ---
-        name_y = box_y + 22 * mm
-        title_y = box_y + 13 * mm
-        am_title_y = box_y + 7 * mm
-
         sig_center_x = box_x + box_w / 2
 
-        c.setFont("Times-Bold", 12)
-        c.setFillColor(PDFService.DARK_COLOR)
-        c.drawCentredString(sig_center_x, name_y, "Hana Tehelku")
+        line_y = 48 * mm
+        line_half_width = 45 * mm
 
-        c.setFont("Times-Bold", 11)
-        c.setFillColor(PDFService.DARK_COLOR)
-        right_title = "Director General"
-        c.drawCentredString(sig_center_x, title_y, right_title)
+        sig_path = os.path.join(
+            settings.static_dir, "final signiture.png"
+        )
+        if os.path.exists(sig_path):
+            sig_w = 150 * mm
+            sig_h = 58 * mm
+            c.drawImage(
+                sig_path,
+                sig_center_x - sig_w / 2, line_y - 20 * mm,
+                width=sig_w, height=sig_h,
+                preserveAspectRatio=True,
+                mask="auto",
+            )
 
-        c.setFont("NotoEthiopic-Bold", 9)
-        c.drawCentredString(sig_center_x, am_title_y, PDFService.AM_DG_TITLE)
-
-        # Signature line, centered under the title
-        title_w = c.stringWidth(right_title, "Times-Bold", 11)
         c.setStrokeColor(PDFService.GRAY_LINE)
-        c.setLineWidth(0.5)
-        line_half = max(title_w, 40 * mm) / 2
-        c.line(sig_center_x - line_half, title_y, sig_center_x + line_half, title_y)
+        c.setLineWidth(0.6)
+        c.line(sig_center_x - line_half_width, line_y, sig_center_x + line_half_width, line_y)
 
-        # --- Stamp placeholder (to be filled in later), left of the signature ---
-        stamp_radius = 11 * mm
-        stamp_cx = box_x + 20 * mm
-        stamp_cy = box_y + box_h / 2
+        c.setFont("Times-Bold", 10)
+        c.setFillColor(PDFService.DARK_COLOR)
+        c.drawCentredString(sig_center_x, line_y - 5 * mm, "Hana Tehelku")
 
-        c.saveState()
-        c.setDash(2, 2)
-        c.setStrokeColor(colors.HexColor("#999999"))
-        c.setLineWidth(0.7)
-        c.circle(stamp_cx, stamp_cy, stamp_radius, fill=False, stroke=True)
-        c.restoreState()
+        c.setFont("Times-Roman", 8.5)
+        c.setFillColor(PDFService.LIGHT_TEXT)
+        c.drawCentredString(
+            sig_center_x, line_y - 9.5 * mm,
+            "Director General, Ethiopian Capital Market Authority",
+        )
 
-        c.setFont("Times-Italic", 7)
-        c.setFillColor(colors.HexColor("#999999"))
-        c.drawCentredString(stamp_cx, stamp_cy - 2, "STAMP")
+        c.setFont(_AMHARIC_FONT_BOLD, 8)
+        c.setFillColor(PDFService.LIGHT_TEXT)
+        c.drawCentredString(sig_center_x, line_y - 14 * mm, "ዋና ዳይሬክተር")
+    @staticmethod
+    def _draw_stamp(c: canvas.Canvas, settings) -> None:
+        """
+        Official seal/stamp, bottom-right corner. Uses an image if present,
+        otherwise draws a simple placeholder circle so the layout holds its
+        shape until a real stamp asset is available.
+
+        Expected stamp image path: static/stamp.png
+        """
+        w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
+        stamp_size = 96 * mm
+        stamp_x = w - 24 * mm - stamp_size
+        stamp_y = -20 * mm - 6
+
+        stamp_path = os.path.join(settings.static_dir, "final stamp.png")
+
+        if os.path.exists(stamp_path):
+            c.drawImage(
+                stamp_path,
+                stamp_x, stamp_y,
+                width=stamp_size, height=stamp_size,
+                preserveAspectRatio=True,
+                mask="auto",
+            )
+        else:
+            # Placeholder seal: dashed circle with small label, so the
+            # layout is easy to preview before the real stamp asset lands.
+            cx = stamp_x + stamp_size / 2
+            cy = stamp_y + stamp_size / 2
+            radius = stamp_size / 2
+
+            c.saveState()
+            c.setStrokeColor(PDFService.GOLD_COLOR)
+            c.setLineWidth(1)
+            c.setDash(2, 2)
+            c.circle(cx, cy, radius, fill=False)
+            c.setDash([], 0)
+
+            c.setFont("Helvetica", 6.5)
+            c.setFillColor(PDFService.LIGHT_TEXT)
+            c.drawCentredString(cx, cy + 2, "OFFICIAL")
+            c.drawCentredString(cx, cy - 5, "SEAL")
+            c.restoreState()
+
+            logger.info(
+                "No stamp image found at %s; drawing placeholder seal.",
+                stamp_path,
+            )
 
     @staticmethod
     def _draw_footer(
@@ -411,39 +522,23 @@ class PDFService:
         issue_date: date,
         certificate_id: str,
     ) -> None:
-        """Draw the footer: issue date (left), address (center), certificate ID (right) — English + Amharic."""
+        """Draw the footer: issue date (left), certificate ID (right) — English + Amharic."""
         w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
         formatted_date = issue_date.strftime("%B %d, %Y")
-        left_x = PDFService.CONTENT_LEFT
 
         left_x = 28 * mm
-        right_x = w - 28 * mm
 
-        # --- Left: Issued on (English + Amharic) ---
-# --- Left: Issued on (English + Amharic) ---
+        # # --- Left column: Issued on, then Certificate ID stacked below ---
+        # c.setFont("Times-Roman", 9)
+        # c.setFillColor(PDFService.LIGHT_TEXT)
+        # c.drawString(left_x, 30 * mm, "Issued on:")
+        # c.setFont("Times-Bold", 9)
+        # c.setFillColor(PDFService.DARK_COLOR)
+        # c.drawString(left_x, 25.5 * mm, formatted_date)
+
         c.setFont("Times-Roman", 9)
         c.setFillColor(PDFService.LIGHT_TEXT)
-        c.drawString(left_x, 36 * mm, "Issued on:")
-
-        c.setFont("NotoEthiopic", 8)
-        c.setFillColor(PDFService.LIGHT_TEXT)
-        c.drawString(left_x, 30.5 * mm, PDFService.AM_ISSUED_ON)
-
-        c.setFont("Times-Bold", 10)
+        c.drawString(left_x, 19 * mm, "Certificate ID:")
+        c.setFont("Times-Bold", 9)
         c.setFillColor(PDFService.DARK_COLOR)
-        c.drawString(left_x, 25.5 * mm, formatted_date)
-        
-
-
-# --- Right: Certificate ID (English + Amharic) ---
-        c.setFont("Times-Roman", 9)
-        c.setFillColor(PDFService.LIGHT_TEXT)
-        c.drawRightString(right_x, 36 * mm, "Certificate ID:")
-
-        c.setFont("NotoEthiopic", 8)
-        c.setFillColor(PDFService.LIGHT_TEXT)
-        c.drawRightString(right_x, 30.5 * mm, PDFService.AM_CERT_ID)
-
-        c.setFont("Times-Bold", 10)
-        c.setFillColor(PDFService.DARK_COLOR)
-        c.drawRightString(right_x, 25.5 * mm, certificate_id)
+        c.drawString(left_x, 14.5 * mm, certificate_id)
