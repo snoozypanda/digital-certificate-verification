@@ -230,16 +230,36 @@ class PDFService:
             logger.warning("QR code not found at %s", qr_code_path)
     @staticmethod
     def _draw_border(c: canvas.Canvas) -> None:
-        """Simple double hairline border with a gold accent line, rounded corners."""
+        """Double hairline border with concave (inward-curving) corners."""
         w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
+
+        def concave_frame(inset, corner_radius):
+            l = inset
+            r = w - inset
+            b = inset
+            t = h - inset
+            cr = corner_radius
+
+            p = c.beginPath()
+            p.moveTo(l + cr, b)
+            p.lineTo(r - cr, b)
+            p.arcTo(r - cr, b - cr, r + cr, b + cr, startAng=180, extent=-90)
+            p.lineTo(r, t - cr)
+            p.arcTo(r - cr, t - cr, r + cr, t + cr, startAng=270, extent=-90)
+            p.lineTo(l + cr, t)
+            p.arcTo(l - cr, t - cr, l + cr, t + cr, startAng=0, extent=-90)
+            p.lineTo(l, b + cr)
+            p.arcTo(l - cr, b - cr, l + cr, b + cr, startAng=90, extent=-90)
+            p.close()
+            return p
 
         c.setStrokeColor(PDFService.GOLD_COLOR)
         c.setLineWidth(1.4)
-        c.roundRect(9 * mm, 9 * mm, w - 18 * mm, h - 18 * mm, 4 * mm, fill=False)
+        c.drawPath(concave_frame(9 * mm, 8 * mm), fill=0, stroke=1)
 
         c.setStrokeColor(PDFService.GOLD_COLOR)
-        c.setLineWidth(0.5)
-        c.roundRect(12 * mm, 12 * mm, w - 24 * mm, h - 24 * mm, 3 * mm, fill=False)
+        c.setLineWidth(1.5)
+        c.drawPath(concave_frame(12 * mm, 7 * mm), fill=0, stroke=1)
 
     @staticmethod
     def _draw_watermark(c: canvas.Canvas, page_width: float) -> None:
@@ -252,7 +272,7 @@ class PDFService:
         if not os.path.exists(seal_path):
             return
 
-        seal_size = 80 * mm
+        seal_size = 90 * mm
 
         c.saveState()
         c.setFillAlpha(0.12)  # lower = more transparent
@@ -354,7 +374,7 @@ class PDFService:
         display_name = f"[{recipient_name}]"
         c.setFont("Times-Bold", 25)
         c.setFillColor(PDFService.DARK_COLOR)
-        c.drawCentredString(w / 2, h - 60 * mm, "CERTIFICATE OF PARTICIPATION")
+        c.drawCentredString(w / 2, h - 60 * mm, "CERTIFICATE OF COMPLETION")
 
         c.setFont(_AMHARIC_FONT_BOLD, 16)
         c.setFillColor(PDFService.DARK_COLOR)
@@ -474,9 +494,9 @@ class PDFService:
         c.setFillColor(PDFService.DARK_COLOR)
         c.drawString(left_x, para_top, "for successfully completing ECMA's twelve week")
         c.drawString(left_x, para_top - line_gap, "online investor education program organized")
-        c.drawString(left_x, para_top - 2 * line_gap, f"by {organization_name}")
-        # c.drawString(left_x, para_top - 3 * line_gap, "knowledge in capital markets through online")
-        # c.drawString(left_x, para_top - 4 * line_gap, "education.")
+        c.drawString(left_x, para_top - 2 * line_gap, f"by {organization_name} to provide foundational knowledge " )
+        c.drawString(left_x, para_top - 3 * line_gap, "in capital markets through online education.")
+        # c.drawString(left_x, para_top - 4 * line_gap, "")
 
         # Amharic column (right)
         c.setFont(_AMHARIC_FONT, 15)
@@ -547,9 +567,9 @@ class PDFService:
         Expected stamp image path: static/stamp.png
         """
         w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
-        stamp_size = 96 * mm
+        stamp_size = 72 * mm
         stamp_x = w - 24 * mm - stamp_size
-        stamp_y = -20 * mm - 6
+        stamp_y = -20 * mm - 10
 
         stamp_path = os.path.join(settings.static_dir, "final stamp.png")
 
