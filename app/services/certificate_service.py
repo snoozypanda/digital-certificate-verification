@@ -41,7 +41,7 @@ class CertificateService:
     @staticmethod
     def _generate_certificate_id() -> str:
         """Generate a unique, URL-safe certificate ID."""
-        return f"CERT-{uuid.uuid4().hex[:12].upper()}"
+        return f"IED-{uuid.uuid4().hex[:12].upper()}"
 
     @staticmethod
     async def process_csv_upload(

@@ -105,7 +105,10 @@ class CSVService:
         """
         errors: list[str] = []
         # Normalize keys
-        normalized = {k.strip().lower(): v.strip() for k, v in row.items() if k}
+        normalized = {
+            k.strip().lower(): (v.strip() if v is not None else "")
+            for k, v in row.items() if k
+        }
 
         # Check required fields are non-empty
         for field in REQUIRED_COLUMNS:

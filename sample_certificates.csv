@@ -1,10 +1,4 @@
-recipient_name,recipient_email,certificate_title,issue_date,organization_name
-<<<<<<< HEAD
-Sifen Bekele Abdi,sifenbekeleabdi@gmail.com, Investors Education Program ,2026-07-18,ECMA
-=======
-Sifen Bekele,sifenbekeleabdi@gmail.com,Investors Education Program,2026-07-21,ECMA Tech Academy
->>>>>>> cb08248 (update pdf service)
-Jane Smith,jane@example.com,Data Science Fundamentals,2024-02-20,ECMA Tech Academy
-Bob Johnson,,Cloud Computing Essentials,2024-03-10,ECMA Tech Academy
-Alice Williams,alice@example.com,Cybersecurity Certification,2024-04-05,ECMA Tech Academy
-Charlie Brown,charlie@example.com,Machine Learning Engineering,2024-05-12,ECMA Tech Academy
+﻿recipient_name,recipient_name_amharic,certificate_title,issue_date,organization_name
+Jane Doe,ጃኔ ዶእ,Capital Market Fundamentals,2026-07-24,Ethiopian Capital Market Authority
+John Smith,ጆን ስሚዝ,Capital Market Fundamentals,2026-07-24,Ethiopian Capital Market Authority
+Alice Johnson,አሊስ ጆንሰን,Capital Market Fundamentals,2026-07-24,Ethiopian Capital Market Authority
