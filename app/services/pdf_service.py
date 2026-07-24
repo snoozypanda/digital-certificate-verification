@@ -494,7 +494,7 @@ class PDFService:
         c.setFillColor(PDFService.DARK_COLOR)
         c.drawString(left_x, para_top, "for successfully completing ECMA's twelve week")
         c.drawString(left_x, para_top - line_gap, "online investor education program organized")
-        c.drawString(left_x, para_top - 2 * line_gap, f"by {organization_name} to provide foundational knowledge " )
+        c.drawString(left_x, para_top - 2 * line_gap, "to provide foundational knowledge " )
         c.drawString(left_x, para_top - 3 * line_gap, "in capital markets through online education.")
         # c.drawString(left_x, para_top - 4 * line_gap, "")
 
