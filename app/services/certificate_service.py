@@ -135,6 +135,7 @@ class CertificateService:
         certificate = Certificate(
             certificate_id=cert_id,
             recipient_name=dto.recipient_name,
+            recipient_name_amharic=dto.recipient_name_amharic,
             recipient_email=dto.recipient_email,
             certificate_title=dto.certificate_title,
             issue_date=dto.issue_date,
@@ -150,6 +151,7 @@ class CertificateService:
         pdf_path = PDFService.generate_pdf(
             certificate_id=cert_id,
             recipient_name=dto.recipient_name,
+            recipient_name_amharic=dto.recipient_name_amharic,
             certificate_title=dto.certificate_title,
             issue_date=dto.issue_date,
             organization_name=dto.organization_name,
@@ -200,6 +202,7 @@ class CertificateService:
         return CertificateVerifyResponse(
             certificate_id=certificate.certificate_id,
             recipient_name=certificate.recipient_name,
+            recipient_name_amharic=certificate.recipient_name_amharic,
             certificate_title=certificate.certificate_title,
             issue_date=certificate.issue_date,
             organization_name=certificate.organization_name,

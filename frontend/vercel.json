@@ -1,0 +1,8 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/", "destination": "/verify.html" },
+    { "source": "/verify", "destination": "/verify.html" },
+    { "source": "/admin", "destination": "/admin.html" }
+  ]
+}

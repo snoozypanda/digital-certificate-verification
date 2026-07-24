@@ -46,6 +46,7 @@ class Certificate(Base):
         comment="Unique public-facing certificate identifier (UUID-based)",
     )
     recipient_name: str = Column(String(255), nullable=False)
+    recipient_name_amharic: str | None = Column(String(255), nullable=True)
     recipient_email: str | None = Column(String(255), nullable=True)
     certificate_title: str = Column(String(500), nullable=False)
     issue_date: date = Column(Date, nullable=False)

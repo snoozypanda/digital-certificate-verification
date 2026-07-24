@@ -114,6 +114,7 @@ class PDFService:
         issue_date: date,
         organization_name: str,
         qr_code_path: str,
+        recipient_name_amharic: str | None = None,
     ) -> str:
         """
         Generate a bilingual (English/Amharic) PDF certificate matching the
@@ -172,7 +173,9 @@ class PDFService:
             PDFService._draw_title(c, recipient_name)
 
             # 6. "To ____" / "ለ ____" recipient line
-            PDFService._draw_recipient_line(c, recipient_name)
+            PDFService._draw_recipient_line(
+                c, recipient_name, recipient_name_amharic
+            )
 
             # 7. Bilingual body paragraph + course title
             PDFService._draw_body(c, certificate_title, organization_name)
@@ -332,6 +335,7 @@ class PDFService:
         logo_x = (w - logo_w) / 2
         top_y = h - 18 * mm
 
+
         if os.path.exists(icon_path):
             c.drawImage(
                 icon_path,
@@ -357,10 +361,74 @@ class PDFService:
         c.drawCentredString(w / 2, h - 68 * mm, "የተሳትፎ የምስክር ወረቀት")
 
     @staticmethod
-    def _draw_recipient_line(c: canvas.Canvas, recipient_name: str) -> None:
+    def _split_recipient_names(
+        recipient_name: str,
+        recipient_name_amharic: str | None = None,
+    ) -> tuple[str, str]:
+        """
+        Extract English and Amharic recipient names.
+        
+        Supports:
+        1. Explicit recipient_name_amharic if provided.
+        2. Combined names in recipient_name separated by '/', '|', ',', or parentheses.
+        3. Auto-detecting Ethiopic Unicode characters.
+        """
+        import re
+
+        if recipient_name_amharic and recipient_name_amharic.strip():
+            return recipient_name.strip(), recipient_name_amharic.strip()
+
+        name = (recipient_name or "").strip()
+
+        # Check for explicit separators: /, |
+        for sep in ['/', '|']:
+            if sep in name:
+                parts = name.split(sep, 1)
+                p1, p2 = parts[0].strip(), parts[1].strip()
+                if re.search(r'[\u1200-\u137F]', p2):
+                    return p1, p2
+                elif re.search(r'[\u1200-\u137F]', p1):
+                    return p2, p1
+                return p1, p2
+
+        # Check for parentheses: e.g. "Abel Tesfaye (አበበ ተስፋዬ)"
+        match = re.search(r'^(.*?)\s*[\(\（](.*?)[\)\）]\s*$', name)
+        if match:
+            p1, p2 = match.group(1).strip(), match.group(2).strip()
+            if re.search(r'[\u1200-\u137F]', p2):
+                return p1, p2
+            elif re.search(r'[\u1200-\u137F]', p1):
+                return p2, p1
+            return p1, p2
+
+        # Check for comma separator if scripts differ
+        if ',' in name:
+            parts = name.split(',', 1)
+            p1, p2 = parts[0].strip(), parts[1].strip()
+            if re.search(r'[\u1200-\u137F]', p2):
+                return p1, p2
+            elif re.search(r'[\u1200-\u137F]', p1):
+                return p2, p1
+
+        # Single string: check if it is Ethiopic or Latin
+        if re.search(r'[\u1200-\u137F]', name):
+            return "", name
+        else:
+            return name, ""
+
+    @staticmethod
+    def _draw_recipient_line(
+        c: canvas.Canvas,
+        recipient_name: str,
+        recipient_name_amharic: str | None = None,
+    ) -> None:
         """Two-column 'To ____' (English) / 'ለ ____' (Amharic) recipient line."""
         w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
         y = h - 82 * mm
+
+        english_name, amharic_name = PDFService._split_recipient_names(
+            recipient_name, recipient_name_amharic
+        )
 
         left_x = PDFService.CONTENT_LEFT
         right_x = w / 2 + PDFService.COLUMN_GAP
@@ -375,8 +443,9 @@ class PDFService:
         c.setStrokeColor(PDFService.GRAY_LINE)
         c.setLineWidth(0.6)
         c.line(line_start, y - 1 * mm, line_end, y - 1 * mm)
-        c.setFont("Times-Bold", 12)
-        c.drawCentredString((line_start + line_end) / 2, y + 2 * mm, recipient_name)
+        if english_name:
+            c.setFont("Times-Bold", 12)
+            c.drawCentredString((line_start + line_end) / 2, y + 2 * mm, english_name)
 
         # Amharic: "ለ ______________"
         c.setFont(_AMHARIC_FONT, 11)
@@ -386,8 +455,9 @@ class PDFService:
         line_start_am = right_x + label_w_am + 3 * mm
         line_end_am = PDFService.CONTENT_RIGHT_EDGE
         c.line(line_start_am, y - 1 * mm, line_end_am, y - 1 * mm)
-        c.setFont(_AMHARIC_FONT_BOLD, 12)
-        c.drawCentredString((line_start_am + line_end_am) / 2, y + 2 * mm, recipient_name)
+        if amharic_name:
+            c.setFont(_AMHARIC_FONT_BOLD, 12)
+            c.drawCentredString((line_start_am + line_end_am) / 2, y + 2 * mm, amharic_name)
 
     @staticmethod
     def _draw_body(c: canvas.Canvas, certificate_title: str, organization_name: str) -> None:

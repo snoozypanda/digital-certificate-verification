@@ -30,6 +30,7 @@ class CertificateResponse(BaseModel):
     id: int
     certificate_id: str
     recipient_name: str
+    recipient_name_amharic: str | None = None
     recipient_email: str | None = None
     certificate_title: str
     issue_date: date
@@ -52,6 +53,7 @@ class CertificateVerifyResponse(BaseModel):
 
     certificate_id: str
     recipient_name: str
+    recipient_name_amharic: str | None = None
     certificate_title: str
     issue_date: date
     organization_name: str
@@ -93,6 +95,7 @@ class CertificateCreateDTO(BaseModel):
     """
 
     recipient_name: str
+    recipient_name_amharic: str | None = None
     recipient_email: str | None = None
     certificate_title: str
     issue_date: date

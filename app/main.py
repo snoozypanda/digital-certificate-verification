@@ -54,6 +54,12 @@ async def lifespan(app: FastAPI):
     """
     logger.info("Starting up %s...", get_settings().app_name)
     ensure_directories()
+    
+    # Auto-create database tables on startup (useful for SQLite fallback)
+    from app.database import Base, engine
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables verified/created.")
+    
     logger.info("All directories verified.")
     yield
     logger.info("Shutting down...")
@@ -184,6 +190,39 @@ app.include_router(certificates_router)
 # ---------------------------------------------------------------------------
 # Health Check
 # ---------------------------------------------------------------------------
+
+
+from fastapi.responses import HTMLResponse
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def read_root():
+    """Serve the verification page at the root path."""
+    try:
+        with open("frontend/verify.html", "r") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Verification page not found</h1>", status_code=404)
+
+
+@app.get("/verify.html", response_class=HTMLResponse, include_in_schema=False)
+def get_verify_page():
+    """Serve the verification page."""
+    try:
+        with open("frontend/verify.html", "r") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Verification page not found</h1>", status_code=404)
+
+
+@app.get("/admin.html", response_class=HTMLResponse, include_in_schema=False)
+def get_admin_page():
+    """Serve the admin page."""
+    try:
+        with open("frontend/admin.html", "r") as f:
+            return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        return HTMLResponse(content="<h1>Admin page not found</h1>", status_code=404)
 
 
 @app.get("/health", tags=["System"])
