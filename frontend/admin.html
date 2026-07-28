@@ -42,7 +42,12 @@ const { useState, useEffect, useMemo, useCallback } = React;
 const h = React.createElement;
 
 // Point this at your running backend.
-const API_BASE = window.location.origin.includes("localhost")
+const API_BASE = (
+  window.location.origin.includes("localhost") ||
+  window.location.origin.includes("127.0.0.1") ||
+  window.location.origin.includes("vercel.app") ||
+  window.location.origin.startsWith("file:")
+)
   ? "http://localhost:8000"
   : window.location.origin;
 
