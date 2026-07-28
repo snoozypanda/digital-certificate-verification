@@ -163,6 +163,16 @@ async def csv_validation_handler(
         content={
             "detail": exc.message,
             "errors": exc.errors,
+            "expected_columns": [
+                "recipient_name",
+                "certificate_title",
+                "issue_date",
+                "organization_name",
+            ],
+            "optional_columns": [
+                "recipient_name_amharic",
+                "recipient_email",
+            ],
         },
     )
 
