@@ -38,7 +38,7 @@ class QRService:
             FileProcessingError: If QR code generation or saving fails.
         """
         settings = get_settings()
-        verification_url = f"{settings.base_url}/verify/{certificate_id}"
+        verification_url = f"{settings.base_url}/verify?id={certificate_id}"
         output_dir = settings.qr_codes_dir
         output_path = os.path.join(output_dir, f"{certificate_id}.png")
 
