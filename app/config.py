@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # Application
     app_name: str = "Certificate Verification System"
     app_version: str = "1.0.0"
-    base_url: str = "http://10.1.10.35:8000"
+    base_url: str = "https://frontend-nu-woad-19.vercel.app"
 
     # File Storage
     static_dir: str = "static"
