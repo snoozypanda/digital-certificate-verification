@@ -90,30 +90,53 @@ class CSVService:
                     "Unable to read the CSV file. Ensure it is UTF-8 encoded."
                 )
 
-        reader = csv.DictReader(io.StringIO(text))
+        # Smart delimiter detection (supports ',', ';', '\t', '|')
+        delimiter = ","
+        first_line = text.strip().split("\n", 1)[0] if text else ""
+        if ";" in first_line and "," not in first_line:
+            delimiter = ";"
+        elif "\t" in first_line and "," not in first_line:
+            delimiter = "\t"
+        elif "|" in first_line and "," not in first_line:
+            delimiter = "|"
+        else:
+            try:
+                dialect = csv.Sniffer().sniff(text[:4096], delimiters=",;\t|")
+                delimiter = dialect.delimiter
+            except Exception:
+                delimiter = ","
 
-        # Validate header
-        if reader.fieldnames is None:
+        # Test initial header read
+        test_reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
+        if test_reader.fieldnames is None:
             raise CSVValidationError("CSV file is empty or has no header row.")
 
-        # Normalize all headers: strip BOM remnants, whitespace, and lowercase
-        raw_headers = list(reader.fieldnames)
-        normalized_headers = [CSVService._normalize_header(h) for h in raw_headers]
+        raw_headers = list(test_reader.fieldnames)
 
-        # Build a mapping from normalized name -> original name for diagnostics
+        # Fallback: if single header column detected, check for embedded delimiters
+        if len(raw_headers) == 1 and raw_headers[0]:
+            first_header = raw_headers[0]
+            for alt_delim in [";", "\t", "|", ","]:
+                if alt_delim in first_header and alt_delim != delimiter:
+                    alt_reader = csv.DictReader(io.StringIO(text), delimiter=alt_delim)
+                    if alt_reader.fieldnames and len(alt_reader.fieldnames) > 1:
+                        delimiter = alt_delim
+                        raw_headers = list(alt_reader.fieldnames)
+                        break
+
+        # Final DictReader with confirmed delimiter
+        reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
+
+        # Normalize all headers: strip BOM remnants, whitespace, and lowercase
+        normalized_headers = [CSVService._normalize_header(h) for h in raw_headers]
         header_set = set(normalized_headers)
 
         # Check for required columns
         missing = REQUIRED_COLUMNS - header_set
         if missing:
             raise CSVValidationError(
-                f"CSV is missing required columns: {', '.join(sorted(missing))}. "
-                f"Found columns: {normalized_headers}",
-                errors=[
-                    f"Missing column: {col}" for col in sorted(missing)
-                ] + [
-                    f"Columns found in file: {', '.join(normalized_headers)}"
-                ],
+                f"CSV is missing required columns: {', '.join(sorted(missing))}.",
+                errors=[f"Missing column: {col}" for col in sorted(missing)],
             )
 
         # Warn about unexpected columns (non-fatal)
@@ -127,7 +150,7 @@ class CSVService:
         # Re-create the reader with normalized headers so that row dicts
         # use clean keys regardless of what the original file contained.
         text_io = io.StringIO(text)
-        reader = csv.DictReader(text_io)
+        reader = csv.DictReader(text_io, delimiter=delimiter)
         # Override fieldnames with normalized versions.
         # When fieldnames is set manually, DictReader does NOT consume the
         # first line as a header — it treats it as data. We must skip it.

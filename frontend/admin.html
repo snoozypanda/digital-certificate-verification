@@ -235,20 +235,8 @@ function UploadPanel({ onDone }) {
     status === 'error' ? h('div', {
       style: { marginTop: 20, padding: '16px 20px', background: '#fbeeec', border: '1px solid #e3bdb5', borderRadius: 4, color: '#900', fontSize: 14 }
     },
-      h('p', { style: { fontWeight: 700, margin: '0 0 8px', fontSize: 15 } }, '⚠️ CSV Upload Error'),
-      h('p', { style: { margin: '0 0 10px', fontWeight: 600 } }, message),
-      errorDetails && errorDetails.errors && errorDetails.errors.length ? h('ul', { style: { margin: '0 0 12px', paddingLeft: 20, fontSize: 13.5 } },
-        errorDetails.errors.map((err, i) => h('li', { key: i, style: { marginBottom: 4 } }, err))
-      ) : null,
-      h('div', { style: { marginTop: 12, paddingTop: 12, borderTop: '1px dashed #e3bdb5', fontSize: 13 } },
-        h('p', { style: { fontWeight: 700, margin: '0 0 6px', color: '#600' } }, 'Required CSV Header Format:'),
-        h('code', { style: { display: 'block', background: '#fff', padding: '8px 12px', border: '1px solid #e3bdb5', borderRadius: 3, fontFamily: "'IBM Plex Mono', monospace", color: '#333' } },
-          'recipient_name,certificate_title,issue_date,organization_name'
-        ),
-        h('p', { style: { margin: '6px 0 0', fontSize: 12, color: '#666' } },
-          'Optional columns: recipient_name_amharic, recipient_email'
-        )
-      )
+      h('p', { style: { fontWeight: 700, margin: '0 0 6px', fontSize: 15 } }, '⚠️ CSV Upload Error'),
+      h('p', { style: { margin: 0, fontWeight: 500 } }, message)
     ) : null,
 
     status === 'success' ? h('div', {
