@@ -89,7 +89,7 @@ app = FastAPI(
 # Browsers send Origin: https://frontend-nu-woad-19.vercel.app for all pages (/admin, /verify).
 allowed_origins = [
     "https://frontend-nu-woad-19.vercel.app",
-    "https://simpson-median-current-austin.trycloudflare.com",
+    "https://alphabetical-votes-won-entertaining.trycloudflare.com",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
     "http://172.10.20.53:8000",
