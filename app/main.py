@@ -89,6 +89,10 @@ app = FastAPI(
 # Browsers send Origin: https://frontend-nu-woad-19.vercel.app for all pages (/admin, /verify).
 allowed_origins = [
     "https://frontend-nu-woad-19.vercel.app",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://172.10.20.53:8000",
+    "http://10.1.10.35:8000",
 ]
 
 app.add_middleware(
