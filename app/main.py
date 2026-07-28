@@ -85,14 +85,16 @@ app = FastAPI(
 )
 
 
-# ---------------------------------------------------------------------------
-# Middleware
-# ---------------------------------------------------------------------------
+# HTTP CORS Origins contain scheme + domain (+ port) only.
+# Browsers send Origin: https://frontend-nu-woad-19.vercel.app for all pages (/admin, /verify).
+allowed_origins = [
+    "https://frontend-nu-woad-19.vercel.app",
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Restrict in production
-    allow_credentials=False,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
