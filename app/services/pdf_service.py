@@ -569,7 +569,7 @@ class PDFService:
         w, h = PDFService.PAGE_WIDTH, PDFService.PAGE_HEIGHT
         stamp_size = 72 * mm
         stamp_x = w - 24 * mm - stamp_size
-        stamp_y = -20 * mm - 10
+        stamp_y = 12 * mm
 
         stamp_path = os.path.join(settings.static_dir, "final stamp.png")
 

@@ -276,16 +276,16 @@
 </div>
 
 <script>
-  // Set your backend server address here for mobile phone & Vercel access
-  const PROD_BACKEND_URL = "http://172.10.20.53:8000";
+  // API_BASE automatically matches the server hosting this page.
+  // When served from the backend (e.g. http://10.1.10.35:8000), API calls go to the backend.
+  // When served from Vercel, set PROD_BACKEND_URL to your production backend address.
+  const PROD_BACKEND_URL = "https://frontend-nu-woad-19.vercel.app";
 
   const API_BASE = (
-    window.location.origin.includes("localhost") ||
-    window.location.origin.includes("127.0.0.1") ||
-    window.location.origin.startsWith("file:")
+    window.location.origin.includes("vercel.app")
   )
-    ? "http://localhost:8000"
-    : PROD_BACKEND_URL;
+    ? PROD_BACKEND_URL
+    : window.location.origin;
 
   const form = document.getElementById('verify-form');
   const input = document.getElementById('cert-input');

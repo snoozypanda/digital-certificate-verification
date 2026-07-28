@@ -222,6 +222,7 @@ def read_root():
 
 
 @app.get("/verify.html", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/verify", response_class=HTMLResponse, include_in_schema=False)
 def get_verify_page():
     """Serve the verification page."""
     try:
@@ -232,6 +233,7 @@ def get_verify_page():
 
 
 @app.get("/admin.html", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/admin", response_class=HTMLResponse, include_in_schema=False)
 def get_admin_page():
     """Serve the admin page."""
     try:
