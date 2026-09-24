@@ -86,8 +86,8 @@ app = FastAPI(
 
 
 # HTTP CORS Origins contain scheme + domain (+ port) only.
-# Browsers send Origin: https://frontend-nu-woad-19.vercel.app for all pages (/admin, /verify).
 allowed_origins = [
+    "https://frontend-six-phi-57.vercel.app",
     "https://frontend-nu-woad-19.vercel.app",
     "https://situations-such-medical-sara.trycloudflare.com",
     "http://localhost:8000",
